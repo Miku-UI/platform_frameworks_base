@@ -6017,11 +6017,6 @@
   <!-- For dynamic default font styles -->
   <java-symbol type="string" name="config_bodyFontFamily" />
 
-  <!-- PropImitationHooks -->
-  <java-symbol type="array" name="config_certifiedBuildProperties" />
-  <java-symbol type="string" name="config_stockFingerprint" />
-  <java-symbol type="bool" name="config_spoofGoogleApps" />
-
   <!-- Allow windowIsFloating to fill screen. -->
   <java-symbol type="bool" name="config_allowFloatingWindowsFillScreen" />
 
