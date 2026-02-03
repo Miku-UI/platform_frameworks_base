@@ -40,5 +40,7 @@ val Kosmos.pulsingGestureListener by Fixture {
         userTracker = userTracker,
         tunerService = mock(),
         dumpManager = dumpManager,
+        powerManager = mock(),
+        context = mock(),
     )
 }

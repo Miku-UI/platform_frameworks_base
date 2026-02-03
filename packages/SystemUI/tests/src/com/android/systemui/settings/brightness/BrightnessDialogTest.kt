@@ -118,7 +118,7 @@ class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
         `when`(brightnessSliderControllerFactory.create(any(), any()))
             .thenReturn(brightnessSliderController)
         `when`(brightnessSliderController.rootView).thenReturn(View(context))
-        `when`(brightnessControllerFactory.create(any())).thenReturn(brightnessController)
+        `when`(brightnessControllerFactory.create(any(), any())).thenReturn(brightnessController)
         whenever(shadeInteractor.isQsExpanded).thenReturn(MutableStateFlow(false))
     }
 

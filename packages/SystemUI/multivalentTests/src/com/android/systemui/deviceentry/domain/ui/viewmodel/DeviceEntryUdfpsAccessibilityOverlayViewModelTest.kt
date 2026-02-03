@@ -25,6 +25,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.accessibility.data.repository.fakeAccessibilityRepository
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
+import com.android.systemui.biometrics.udfpsUtils
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.data.ui.viewmodel.deviceEntryUdfpsAccessibilityOverlayViewModel
 import com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlay
@@ -83,7 +84,6 @@ class DeviceEntryUdfpsAccessibilityOverlayViewModelTest(flags: FlagsParameteriza
     private val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     private val fingerprintPropertyRepository = kosmos.fingerprintPropertyRepository
     private val deviceEntryFingerprintAuthRepository = kosmos.deviceEntryFingerprintAuthRepository
-    private val deviceEntryRepository = kosmos.fakeDeviceEntryRepository
 
     private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
 
@@ -277,15 +277,15 @@ class DeviceEntryUdfpsAccessibilityOverlayViewModelTest(flags: FlagsParameteriza
 
     private fun mockTouchOutsideSensorArea(guidanceMessage: String) {
         whenever(
-                kosmos.udfpsUtils.onTouchOutsideOfSensorArea(
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    anyBoolean(),
-                )
+            kosmos.udfpsUtils.onTouchOutsideOfSensorArea(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                anyBoolean(),
             )
+        )
             .thenReturn(guidanceMessage)
     }
 
