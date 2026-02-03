@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.chips.ui.view
 
 import android.content.Context
 import android.content.res.Configuration
+import android.text.TextUtils
 import android.util.AttributeSet
 import android.widget.TextView
 
@@ -27,6 +28,12 @@ class ChipTextView
 constructor(context: Context, attrs: AttributeSet? = null, defStyle: Int = 0) :
     TextView(context, attrs, defStyle) {
     private val textTruncationHelper = ChipTextTruncationHelper(this)
+
+    init {
+        ellipsize = TextUtils.TruncateAt.MARQUEE
+        marqueeRepeatLimit = 1
+        horizontallyScrolling = true
+    }
 
     override fun onConfigurationChanged(newConfig: Configuration?) {
         super.onConfigurationChanged(newConfig)
@@ -38,19 +45,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyle: Int = 0) :
         // that [textTruncationHelper.shouldShowText] works correctly.
         super.onMeasure(textTruncationHelper.unlimitedWidthMeasureSpec.specInt, heightMeasureSpec)
 
-        if (
-            textTruncationHelper.shouldShowText(
-                desiredTextWidthPx = measuredWidth,
-                widthMeasureSpec = SysuiMeasureSpec(widthMeasureSpec),
-            )
-        ) {
-            // Show the text with the width spec specified by the helper
-            super.onMeasure(textTruncationHelper.widthMeasureSpec.specInt, heightMeasureSpec)
-        } else {
-            // Changing visibility ensures that the content description is not read aloud when the
-            // text isn't displayed.
-            visibility = GONE
-            setMeasuredDimension(0, 0)
-        }
+        // Show the text with the width spec specified by the helper
+        super.onMeasure(textTruncationHelper.widthMeasureSpec.specInt, heightMeasureSpec)
     }
 }

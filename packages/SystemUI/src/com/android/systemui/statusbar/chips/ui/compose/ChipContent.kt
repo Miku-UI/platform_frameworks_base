@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.chips.ui.compose
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -139,7 +140,8 @@ fun ChipContent(
                             maxTextWidth = maxTextWidth,
                             startPadding = startPadding,
                             endPadding = endPadding,
-                        ),
+                            ignoreMaxWidth = true,
+                        ).basicMarquee(),
                 )
             }
         }
@@ -230,6 +232,7 @@ private fun Modifier.hideTextIfDoesNotFit(
     maxTextWidth: Dp,
     startPadding: Dp = 0.dp,
     endPadding: Dp = 0.dp,
+    ignoreMaxWidth: Boolean = false,
 ): Modifier {
     return this.then(
         HideTextIfDoesNotFitElement(
@@ -239,6 +242,7 @@ private fun Modifier.hideTextIfDoesNotFit(
             maxTextWidth,
             startPadding,
             endPadding,
+            ignoreMaxWidth,
         )
     )
 }
@@ -250,6 +254,7 @@ private data class HideTextIfDoesNotFitElement(
     val maxTextWidth: Dp,
     val startPadding: Dp,
     val endPadding: Dp,
+    val ignoreMaxWidth: Boolean,
 ) : ModifierNodeElement<HideTextIfDoesNotFitNode>() {
     override fun create(): HideTextIfDoesNotFitNode {
         return HideTextIfDoesNotFitNode(
@@ -259,6 +264,7 @@ private data class HideTextIfDoesNotFitElement(
             maxTextWidth,
             startPadding,
             endPadding,
+            ignoreMaxWidth,
         )
     }
 
@@ -279,6 +285,7 @@ private class HideTextIfDoesNotFitNode(
     var maxTextWidth: Dp,
     var startPadding: Dp,
     var endPadding: Dp,
+    var ignoreMaxWidth: Boolean,
 ) : Modifier.Node(), LayoutModifierNode {
     override fun MeasureScope.measure(
         measurable: Measurable,
@@ -291,7 +298,7 @@ private class HideTextIfDoesNotFitNode(
         val placeable = measurable.measure(constraints.copy(maxWidth = maxWidth))
 
         val intrinsicWidth = textMeasurer.measure(text, textStyle, softWrap = false).size.width
-        return if (intrinsicWidth <= maxWidth) {
+        return if (intrinsicWidth <= maxWidth || ignoreMaxWidth) {
             val height = placeable.height
             val width = placeable.width
             layout(width + horizontalPadding.roundToPx(), height) {
