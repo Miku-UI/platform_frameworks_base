@@ -96,8 +96,6 @@ constructor(
         val notificationIconsArea = view.requireViewById<View>(R.id.notificationIcons)
 
         val lyricController = LyricController(view)
-        // Since TunerService is deprecated, we'll migrate to SettingsObserver soon.
-        lyricController.isEnabled = true
 
         // CollapsedStatusBarFragment doesn't need this
         if (StatusBarRootModernization.isEnabled) {
@@ -293,6 +291,12 @@ constructor(
                     launch {
                         viewModel.isNotificationIconContainerVisible.collect {
                             notificationIconsArea.adjustVisibility(it)
+                        }
+                    }
+
+                    launch {
+                        viewModel.isLyricEnabled.collect {
+                            lyricController.isEnabled = it
                         }
                     }
 
