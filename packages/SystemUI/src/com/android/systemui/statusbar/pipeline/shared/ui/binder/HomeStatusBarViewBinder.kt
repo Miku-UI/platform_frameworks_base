@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.pipeline.shared.ui.binder
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.content.Context
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
@@ -41,6 +42,7 @@ import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationSt
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.RunningChipAnim
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.ConnectedDisplaysStatusBarNotificationIconViewStore
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
+import com.android.systemui.statusbar.phone.LyricViewController
 import com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.statusbar.pipeline.shared.ui.model.VisibilityModel
@@ -93,6 +95,10 @@ constructor(
         val clockView = view.requireViewById<View>(R.id.clock)
         val notificationIconsArea = view.requireViewById<View>(R.id.notificationIcons)
 
+        val lyricController = LyricController(view)
+        // Since TunerService is deprecated, we'll migrate to SettingsObserver soon.
+        lyricController.isEnabled = true
+
         // CollapsedStatusBarFragment doesn't need this
         if (StatusBarRootModernization.isEnabled) {
             // GONE because this shouldn't take space in the layout
@@ -100,6 +106,7 @@ constructor(
             systemInfoView.hideInitially()
             clockView.hideInitially()
             notificationIconsArea.hideInitially()
+            lyricController.hideInitially()
         }
 
         view.repeatWhenAttached {
@@ -290,6 +297,12 @@ constructor(
                     }
 
                     launch {
+                        viewModel.isLyricVisible.collect {
+                            lyricController.adjustVisibility(it)
+                        }
+                    }
+
+                    launch {
                         viewModel.systemInfoCombinedVis.collect { (baseVis, animState) ->
                             // Broadly speaking, the baseVis controls the view.visibility, and
                             // the animation state uses only alpha to achieve its effect. This
@@ -474,6 +487,38 @@ constructor(
             .withEndAction(null)
 
         // TODO(b/364360986): Synchronize the motion with the Keyguard fading if necessary.
+    }
+
+    inner class LyricController(val statusBar: View) : LyricViewController(statusBar.context, statusBar) {
+        private val leftSide: View by lazy {
+            statusBar.findViewById(R.id.status_bar_start_side_except_heads_up)
+        }
+
+        fun hideInitially() {
+            // GONE because this shouldn't take space in the layout
+            view.hideInitially(state = View.GONE)
+        }
+
+        fun adjustVisibility(model: VisibilityModel) {
+            if (model.visibility == View.VISIBLE) {
+                showLyricView(model.shouldAnimateChange)
+            } else {
+                hideLyricView(model.shouldAnimateChange)
+            }
+        }
+
+        override fun showLyricView(animate: Boolean) {
+            if (isLyricStarted) {
+                leftSide.hide(shouldAnimateChange = animate)
+                view.show(animate)
+            }
+        }
+
+        override fun hideLyricView(animate: Boolean) {
+            view.hide(shouldAnimateChange = animate)
+            leftSide.show(animate)
+        }
+
     }
 }
 

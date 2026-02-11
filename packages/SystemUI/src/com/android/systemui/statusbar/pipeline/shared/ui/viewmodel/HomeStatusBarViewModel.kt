@@ -201,6 +201,7 @@ interface HomeStatusBarViewModel : Activatable {
     val shouldShowOperatorNameView: Flow<Boolean>
     val isClockVisible: Flow<VisibilityModel>
     val isNotificationIconContainerVisible: Flow<VisibilityModel>
+    val isLyricVisible: Flow<VisibilityModel>
 
     /**
      * Pair of (system info visibility, event animation state). The animation state can be used to
@@ -703,6 +704,21 @@ constructor(
                 columnPrefix = COL_PREFIX_NOTIF_CONTAINER,
                 initialValue = VisibilityModel(false.toVisibleOrInvisible(), false),
             )
+            .flowOn(bgDispatcher)
+
+    override val isLyricVisible: Flow<VisibilityModel> =
+        combine(
+                isNotificationIconContainerVisible,
+                hideStartSideContentForHeadsUp,
+                hasOngoingActivityChips,
+            ) {
+                isNotificationIconContainerVisible, hideStartSideContentForHeadsUp, hasOngoingActivityChips ->
+                val showLyric =
+                    (isNotificationIconContainerVisible.visibility == View.VISIBLE) &&
+                        !hideStartSideContentForHeadsUp && !hasOngoingActivityChips
+                VisibilityModel(showLyric.toVisibleOrGone(), false)
+            }
+            .distinctUntilChanged()
             .flowOn(bgDispatcher)
 
     private val isSystemInfoVisible =
