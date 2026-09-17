@@ -370,7 +370,9 @@ private fun ContentScope.SingleShade(
                 val qqsLayoutPaddingBottom = 16.dp
                 val qsHorizontalMargin =
                     shadeHorizontalPadding + dimensionResource(id = R.dimen.qs_horizontal_margin)
-                MediaAndQqsLayout(
+                Box {
+                    MikuQsHeaderArt(modifier = Modifier.align(Alignment.TopCenter))
+                    MediaAndQqsLayout(
                     modifier =
                         Modifier.element(QuickSettings.Elements.QuickQuickSettingsAndMedia)
                             .offset {
@@ -430,7 +432,8 @@ private fun ContentScope.SingleShade(
                         }
                     },
                     mediaInRow = mediaInRow,
-                )
+                    )
+                }
             },
             scrollableScrim = { onContentHeightChanged, isScrimAtRest ->
                 NestedScrollingNotificationPanel(
@@ -634,6 +637,7 @@ private fun ContentScope.SplitShade(
 
                                 Element(QS.rootElementKey, Modifier) {
                                     Column {
+                                        MikuQsHeaderArt()
                                         Box(
                                             Modifier.weight(1f)
                                                 .sysuiResTag("expanded_qs_scroll_view")

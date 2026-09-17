@@ -96,6 +96,7 @@ import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.ui.composable.Scene
 import com.android.systemui.shade.ui.composable.CollapsedShadeHeader
 import com.android.systemui.shade.ui.composable.ExpandedShadeHeader
+import com.android.systemui.shade.ui.composable.MikuQsHeaderArt
 import com.android.systemui.shade.ui.composable.ShadePanelScrim
 import com.android.systemui.shade.ui.viewmodel.ShadeHeaderViewModel
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScrollView
@@ -403,6 +404,7 @@ private fun ContentScope.QuickSettingsContent(
                 Modifier.fillMaxSize().overscroll(verticalOverscrollEffect).padding(navBarInsets),
         ) {
             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+                MikuQsHeaderArt(modifier = Modifier.align(Alignment.TopCenter))
                 Column(
                     modifier =
                         Modifier.disableSwipesWhenScrolling()

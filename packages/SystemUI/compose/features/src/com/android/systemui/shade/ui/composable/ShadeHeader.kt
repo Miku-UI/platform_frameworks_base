@@ -28,6 +28,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -62,10 +63,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -980,4 +983,15 @@ private fun shouldUseExpandedFormat(state: SceneTransitionLayoutState): Boolean 
         (state is TransitionState.Transition &&
             ((state.isTransitioning(to = Scenes.QuickSettings) && state.progress >= 0.5) ||
                 (state.isTransitioning(from = Scenes.QuickSettings) && state.progress <= 0.5)))
+}
+
+/** Decorative Miku art behind QQS/QS, ported from the old QuickStatusBarHeader ImageView. */
+@Composable
+fun MikuQsHeaderArt(modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(id = R.drawable.statusbar_miku),
+        contentDescription = null,
+        contentScale = ContentScale.Inside,
+        modifier = modifier.fillMaxWidth().height(200.dp),
+    )
 }
